@@ -15,6 +15,132 @@ from utils import CvFpsCalc
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
+import random
+# Load the emoji image
+emoji_path = 'E:\\WPI_Courses\\Sem3\\CV\\week14\\thumbsup.png'
+emoji = cv.imread(emoji_path, cv.IMREAD_UNCHANGED)
+desired_size = (100, 100) 
+emoji = cv.resize(emoji, desired_size)
+emoji_alpha = emoji[:, :, 3]
+emoji = emoji[:, :, :3]
+
+emoji_path_td = 'E:\\WPI_Courses\\Sem3\\CV\\week14\\thumbsdown.png'
+emoji_td = cv.imread(emoji_path_td, cv.IMREAD_UNCHANGED)
+desired_size_td = (100, 100) 
+emoji_td = cv.resize(emoji_td, desired_size_td)
+emoji_alpha_td = emoji_td[:, :, 3]
+emoji_td = emoji_td[:, :, :3]
+
+snowflake_path = 'E:\\WPI_Courses\\Sem3\\CV\\week14\\snowflake.png' 
+snowflake_img = cv.imread(snowflake_path, cv.IMREAD_UNCHANGED)
+
+# Function to overlay snowflake on the image
+
+# def overlay_snowflake(background, snowflake, position, scale=1.0):
+#     x, y = position
+#     snowflake = cv.resize(snowflake, (0, 0), fx=scale, fy=scale)
+#     h, w = snowflake.shape[:2]
+
+#     # Overlay boundaries
+#     y1, y2 = max(0, y), min(background.shape[0], y + h)
+#     x1, x2 = max(0, x), min(background.shape[1], x + w)
+
+#     # Check if the overlay area is valid
+#     if y1 >= y2 or x1 >= x2:
+#         return background
+
+#     # Crop the overlay image and alpha mask to fit the background
+#     snowflake_cropped = snowflake[:y2-y1, :x2-x1]
+#     alpha_snowflake = snowflake_cropped[:, :, 3] / 255.0
+#     alpha_background = 1.0 - alpha_snowflake
+
+#     # Overlay snowflake
+#     for c in range(0, 3):
+#         background[y1:y2, x1:x2, c] = alpha_snowflake * snowflake_cropped[:, :, c] + alpha_background * background[y1:y2, x1:x2, c]
+
+#     return background
+def overlay_snowflake(background, snowflake, position, scale=1.0, angle=0):
+    x, y = position
+    snowflake = cv.resize(snowflake, (0, 0), fx=scale, fy=scale)
+
+    # Rotate the snowflake
+    center = (snowflake.shape[1] // 2, snowflake.shape[0] // 2)
+    rotation_matrix = cv.getRotationMatrix2D(center, angle, 1)
+    snowflake = cv.warpAffine(snowflake, rotation_matrix, (snowflake.shape[1], snowflake.shape[0]))
+
+    h, w = snowflake.shape[:2]
+
+    # Overlay boundaries
+    y1, y2 = max(0, y), min(background.shape[0], y + h)
+    x1, x2 = max(0, x), min(background.shape[1], x + w)
+
+    # Check if the overlay area is valid
+    if y1 >= y2 or x1 >= x2:
+        return background
+
+    # Crop the overlay image and alpha mask to fit the background
+    snowflake_cropped = snowflake[:y2-y1, :x2-x1]
+    alpha_snowflake = snowflake_cropped[:, :, 3] / 255.0
+    alpha_background = 1.0 - alpha_snowflake
+
+    # Overlay snowflake
+    for c in range(0, 3):
+        background[y1:y2, x1:x2, c] = alpha_snowflake * snowflake_cropped[:, :, c] + alpha_background * background[y1:y2, x1:x2, c]
+
+    return background
+
+# Function to draw fog effect
+def apply_fog_effect(image, intensity=0.2):
+    fog = np.full(image.shape, 255, dtype=image.dtype)
+    cv.addWeighted(image, 1 - intensity, fog, intensity, 0, image)
+    return image
+
+# Initialize snowflakes data
+num_snowflakes = 50  # Adjust the number of snowflakes
+snowflakes = [{
+    'position': (random.randint(0, 640), random.randint(-100, -10)),
+    'scale': random.uniform(0.015, 0.08),
+    'speed': random.randint(1, 4),
+    'angle': random.randint(0, 360) 
+} for _ in range(num_snowflakes)]
+
+def overlay_image_alpha(img, img_overlay, pos, alpha_mask):
+    x, y = pos
+    y1, y2 = max(0, y), min(img.shape[0], y + img_overlay.shape[0])
+    x1, x2 = max(0, x), min(img.shape[1], x + img_overlay.shape[1])
+
+    if y1 >= y2 or x1 >= x2:
+        # If the calculated positions result in no overlap, return the image as is
+        return img
+
+    # Adjust the overlay and the alpha mask to match the ROI shape
+    overlay_cropped = img_overlay[0:y2-y1, 0:x2-x1]
+    alpha_cropped = alpha_mask[0:y2-y1, 0:x2-x1][..., np.newaxis] / 255.0
+
+    if alpha_cropped is not None:
+        overlay = alpha_cropped * overlay_cropped
+        background = (1.0 - alpha_cropped) * img[y1:y2, x1:x2]
+        img[y1:y2, x1:x2] = overlay + background
+    else:
+        img[y1:y2, x1:x2] = overlay_cropped
+
+    return img
+
+def overlaytd_image_alpha(img, img_overlay, pos, alpha_mask):
+    x, y = pos
+    y1, y2 = max(0, y), min(img.shape[0], y + img_overlay.shape[0])
+    x1, x2 = max(0, x), min(img.shape[1], x + img_overlay.shape[1])
+
+    if alpha_mask is not None:
+        # Reshape the alpha mask to match the color image shape
+        alpha = alpha_mask[..., np.newaxis] / 255.0
+        overlay = alpha * img_overlay[0:y2-y1, 0:x2-x1]
+        background = (1.0 - alpha) * img[y1:y2, x1:x2]
+        img[y1:y2, x1:x2] = overlay + background
+    else:
+        img[y1:y2, x1:x2] = img_overlay[0:y2-y1, 0:x2-x1]
+
+    return img
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -36,6 +162,109 @@ def get_args():
     args = parser.parse_args()
 
     return args
+
+def draw_heart(image, center, size, color):
+    # Calculate points for the heart shape
+    x, y = center
+    w, h = size
+    top_left = (x - w // 2, y)
+    bottom_point = (x, y + h // 2)
+
+    # Points for the left and right arcs of the heart
+    left_arc = [top_left, (x - w // 2, y - h // 3), (x, y - h // 2)]
+    right_arc = [(x, y - h // 2), (x + w // 2, y - h // 3), (x + w // 2, y)]
+
+    # Draw two halves of the heart
+    cv.fillPoly(image, [np.array([top_left, *left_arc, bottom_point])], color)
+    cv.fillPoly(image, [np.array([top_left, *right_arc, bottom_point])], color)
+
+    return image
+
+def draw_hearts_effect(image, hand_center, num_hearts=5, max_offset=50):
+    for _ in range(num_hearts):
+        # Randomly offset the heart's position
+        offset_x = random.randint(-max_offset, max_offset)
+        offset_y = random.randint(-max_offset, max_offset)
+        heart_center = (hand_center[0] + offset_x, hand_center[1] + offset_y)
+
+        # Random size and color for each heart
+        size = (random.randint(20, 40), random.randint(20, 40))  # width, height
+        color = (0, 0, 255)  # Red color
+
+        image = draw_heart(image, heart_center, size, color)
+    return image
+
+
+def draw_balloons_effect(image):
+    # Logic to draw balloons effect
+    # Drawing simple colored circles as balloons
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    for i in range(3):
+        cv.circle(image, (100 + i * 100, 300), 50, colors[i], -1)
+    return image
+
+def draw_thumbs_up_effect(image):
+    # Logic to draw thumbs up effect
+    cv.rectangle(image, (150, 250), (170, 350), (0, 255, 0), -1)
+    
+    # Top part of the thumb
+    cv.rectangle(image, (170, 150), (250, 170), (0, 255, 0), -1)
+    cv.circle(image, (250, 170), 20, (0, 255, 0), -1)
+
+    # Bottom part of the hand
+    cv.rectangle(image, (170, 250), (230, 350), (0, 255, 0), -1)
+
+    return image
+
+def draw_confetti_effect(image):
+    h, w = image.shape[:2]  # Get the height and width of the image
+    num_confetti = 50  # Increase the number of confetti pieces for full coverage
+
+    for i in range(num_confetti):
+        x, y = random.randint(0, w), random.randint(0, h)  # Random position within the whole screen
+        size = random.randint(5, 10)  # Random size of the confetti
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))  # Random color
+        cv.rectangle(image, (x, y), (x + size, y + size), color, -1)  # Draw the confetti
+
+    return image
+
+def overlay_image_alpha_cylindrical(img, img_overlay, pos, alpha_mask):
+    x, y = pos
+    h, w = img.shape[:2]
+    overlay_h, overlay_w = img_overlay.shape[:2]
+
+    # Calculate positions
+    y1, y2 = max(0, y), min(h, y + overlay_h)
+    x1, x2 = x, x + overlay_w
+
+    # Check if the emoji goes beyond the screen on the right
+    if x2 > w:
+        x2_left = w
+        x2_right = x2 - w
+    else:
+        x2_left = x2
+        x2_right = 0
+
+    # Left part (visible on screen)
+    if alpha_mask is not None:
+        alpha_left = alpha_mask[..., np.newaxis][0:y2-y1, 0:x2_left-x1] / 255.0
+        overlay_left = alpha_left * img_overlay[0:y2-y1, 0:x2_left-x1]
+        background_left = (1.0 - alpha_left) * img[y1:y2, x1:x2_left]
+        img[y1:y2, x1:x2_left] = overlay_left + background_left
+    else:
+        img[y1:y2, x1:x2_left] = img_overlay[0:y2-y1, 0:x2_left-x1]
+
+    # Right part (wrapped to the left side)
+    if x2_right > 0:
+        if alpha_mask is not None:
+            alpha_right = alpha_mask[..., np.newaxis][0:y2-y1, -x2_right:] / 255.0
+            overlay_right = alpha_right * img_overlay[0:y2-y1, -x2_right:]
+            background_right = (1.0 - alpha_right) * img[y1:y2, 0:x2_right]
+            img[y1:y2, 0:x2_right] = overlay_right + background_right
+        else:
+            img[y1:y2, 0:x2_right] = img_overlay[0:y2-y1, -x2_right:]
+
+    return img
 
 
 def main():
@@ -61,7 +290,7 @@ def main():
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         static_image_mode=use_static_image_mode,
-        max_num_hands=1,
+        max_num_hands=2,
         min_detection_confidence=min_detection_confidence,
         min_tracking_confidence=min_tracking_confidence,
     )
@@ -110,6 +339,7 @@ def main():
         # Camera capture #####################################################
         ret, image = cap.read()
         if not ret:
+            print("Failed to grab frame")
             break
         image = cv.flip(image, 1)  # Mirror display
         debug_image = copy.deepcopy(image)
@@ -121,6 +351,13 @@ def main():
         results = hands.process(image)
         image.flags.writeable = True
 
+        thumbs_up_count = 0
+        thumbs_up_detected =  False
+        thumbs_down_detected =  False
+        snowfall_active = False
+
+        screen_center_x = cap_width // 2
+
         #  ####################################################################
         if results.multi_hand_landmarks is not None:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks,
@@ -129,6 +366,13 @@ def main():
                 brect = calc_bounding_rect(debug_image, hand_landmarks)
                 # Landmark calculation
                 landmark_list = calc_landmark_list(debug_image, hand_landmarks)
+
+                thumb_tip_x, thumb_tip_y = landmark_list[4][0], landmark_list[4][1]
+                pinky_tip_x, pinky_tip_y = landmark_list[20][0], landmark_list[20][1]  # Pinky tip
+
+                # Calculate mean position
+                mean_x, mean_y = (thumb_tip_x + pinky_tip_x) // 2, (thumb_tip_y + pinky_tip_y) // 2
+                mean_pos = (mean_x, mean_y)
 
                 # Conversion to relative coordinates / normalized coordinates
                 pre_processed_landmark_list = pre_process_landmark(
@@ -146,6 +390,20 @@ def main():
                 else:
                     point_history.append([0, 0])
 
+                # Logic for triggering effects based on gesture
+                if keypoint_classifier_labels[hand_sign_id] == 'Hearts':
+                    debug_image = draw_hearts_effect(debug_image, mean_pos)
+                elif keypoint_classifier_labels[hand_sign_id] == 'Peace Gesture':
+                    debug_image = draw_balloons_effect(debug_image)
+                elif keypoint_classifier_labels[hand_sign_id] in('ThumbsUp' or 'Fireworks'):
+                    thumbs_up_count +=1
+                    thumbs_up_detected = True
+                elif keypoint_classifier_labels[hand_sign_id] == 'Confetti':
+                    debug_image = draw_confetti_effect(debug_image)
+                elif keypoint_classifier_labels[hand_sign_id] == 'ThumbsDown':
+                    thumbs_down_detected = True
+                elif keypoint_classifier_labels[hand_sign_id] == 'OK':
+                    snowfall_active  = True
                 # Finger gesture classification
                 finger_gesture_id = 0
                 point_history_len = len(pre_processed_point_history_list)
@@ -159,20 +417,56 @@ def main():
                     finger_gesture_history).most_common()
 
                 # Drawing part
-                debug_image = draw_bounding_rect(use_brect, debug_image, brect)
-                debug_image = draw_landmarks(debug_image, landmark_list)
-                debug_image = draw_info_text(
-                    debug_image,
-                    brect,
-                    handedness,
-                    keypoint_classifier_labels[hand_sign_id],
-                    point_history_classifier_labels[most_common_fg_id[0][0]],
-                )
+                #debug_image = draw_bounding_rect(use_brect, debug_image, brect)
+                #debug_image = draw_landmarks(debug_image, landmark_list)
+                # debug_image = draw_info_text(
+                #     debug_image,
+                #     brect,
+                #     handedness,
+                #     keypoint_classifier_labels[hand_sign_id],
+                #     point_history_classifier_labels[most_common_fg_id[0][0]],
+                # )
         else:
             point_history.append([0, 0])
 
+        if thumbs_up_detected:  
+            if thumbs_up_count == 2:
+                # Trigger fireworks effect
+                pass
+            elif thumbs_up_count == 1:
+                emoji_x = thumb_tip_x + 300
+                if thumb_tip_x > screen_center_x -75:
+                    # If the thumb is on the right side, display emoji on the left
+                    emoji_x = thumb_tip_x - 350 - emoji.shape[1]
+                emoji_x = max(0, min(emoji_x, cap_width - emoji.shape[1]))  # Ensure within bounds
+                emoji_y = max(0, min(thumb_tip_y - 150, cap_height - emoji.shape[0]))  # Ensure within bounds
+                debug_image = overlay_image_alpha(debug_image, emoji, (emoji_x, emoji_y), emoji_alpha)
+
+        elif thumbs_down_detected:
+                emoji_x_td = thumb_tip_x + 300
+                if thumb_tip_x > screen_center_x - 75:
+                    # If the thumb is on the right side, display emoji on the left
+                    emoji_x_td = thumb_tip_x - 350 - emoji_td.shape[1]
+                emoji_x_td = max(0, min(emoji_x_td, cap_width - emoji_td.shape[1]))  # Ensure within bounds
+                emoji_y_td = max(0, min(thumb_tip_y - 250, cap_height - emoji_td.shape[0]))  # Ensure within bounds
+                debug_image = overlay_image_alpha(debug_image, emoji_td, (emoji_x_td, emoji_y_td), emoji_alpha_td)
+
+        elif snowfall_active:
+            for snowflake in snowflakes:
+                debug_image = overlay_snowflake(debug_image, snowflake_img, snowflake['position'], snowflake['scale'])
+                snowflake['position'] = (snowflake['position'][0], snowflake['position'][1] + snowflake['speed'])
+                snowflake['angle'] = (snowflake['angle'] + 5) % 360  # Update angle
+        
+                if snowflake['position'][1] > debug_image.shape[0]:
+                    snowflake['position'] = (random.randint(0, 640), random.randint(-100, -10))
+                    snowflake['scale'] = random.uniform(0.015, 0.1)
+                    snowflake['speed'] = random.randint(1, 4)
+                    snowflake['angle'] = random.randint(0, 360)
+
+            debug_image = apply_fog_effect(debug_image, intensity=0.175)  # Adjust intensity for desired fog effect
+
         debug_image = draw_point_history(debug_image, point_history)
-        debug_image = draw_info(debug_image, fps, mode, number)
+        #debug_image = draw_info(debug_image, fps, mode, number)
 
         # Screen reflection #############################################################
         cv.imshow('Hand Gesture Recognition', debug_image)
