@@ -6,6 +6,7 @@ import argparse
 import itertools
 from collections import Counter
 from collections import deque
+import math
 
 import cv2 as cv
 import numpy as np
@@ -34,31 +35,6 @@ emoji_td = emoji_td[:, :, :3]
 snowflake_path = 'E:\\WPI_Courses\\Sem3\\CV\\week14\\snowflake.png' 
 snowflake_img = cv.imread(snowflake_path, cv.IMREAD_UNCHANGED)
 
-# Function to overlay snowflake on the image
-
-# def overlay_snowflake(background, snowflake, position, scale=1.0):
-#     x, y = position
-#     snowflake = cv.resize(snowflake, (0, 0), fx=scale, fy=scale)
-#     h, w = snowflake.shape[:2]
-
-#     # Overlay boundaries
-#     y1, y2 = max(0, y), min(background.shape[0], y + h)
-#     x1, x2 = max(0, x), min(background.shape[1], x + w)
-
-#     # Check if the overlay area is valid
-#     if y1 >= y2 or x1 >= x2:
-#         return background
-
-#     # Crop the overlay image and alpha mask to fit the background
-#     snowflake_cropped = snowflake[:y2-y1, :x2-x1]
-#     alpha_snowflake = snowflake_cropped[:, :, 3] / 255.0
-#     alpha_background = 1.0 - alpha_snowflake
-
-#     # Overlay snowflake
-#     for c in range(0, 3):
-#         background[y1:y2, x1:x2, c] = alpha_snowflake * snowflake_cropped[:, :, c] + alpha_background * background[y1:y2, x1:x2, c]
-
-#     return background
 def overlay_snowflake(background, snowflake, position, scale=1.0, angle=0):
     x, y = position
     snowflake = cv.resize(snowflake, (0, 0), fx=scale, fy=scale)
@@ -228,6 +204,26 @@ def draw_confetti_effect(image):
 
     return image
 
+def generate_laser_beam(img, color, thickness=2):
+    start_point = (random.randint(0, img.shape[1]), random.randint(0, img.shape[0]))
+    end_point = (random.randint(0, img.shape[1]), random.randint(0, img.shape[0]))
+    cv.line(img, start_point, end_point, color, thickness)
+
+def draw_laser_effect(image, position, color=(0, 255, 0), thickness=2):
+    """
+    Draws two laser beams originating from the bottom corners of the screen,
+    connecting at a given position.
+    
+    Parameters:
+        image (numpy.ndarray): The image on which to draw the laser beams.
+        position (tuple): The current position (x, y) for the connecting point of the laser beams.
+        color (tuple): The color of the laser beam in BGR format (blue, green, red).
+        thickness (int): The thickness of the laser beam.
+    """
+    height, width = image.shape[:2]
+    cv.line(image, (0, height), position, color, thickness)
+    cv.line(image, (width, height), position, color, thickness)
+
 def overlay_image_alpha_cylindrical(img, img_overlay, pos, alpha_mask):
     x, y = pos
     h, w = img.shape[:2]
@@ -326,6 +322,32 @@ def main():
 
     #  ########################################################################
     mode = 0
+    # Example variables to control the laser animation
+    laser_x = 0
+    laser_y = cap_height // 2  # Start from the middle of the screen vertically
+    laser_dx = 5  # Change in position per frame
+    
+    angle = 0  # Ensure this is outside your main loop
+    angle1 = 60
+    angle2 = 120
+    angle3 = 180
+    angle4 = 240  # Ensure this is outside your main loop
+    anglea = 0
+    angle1a = -60
+    angle2a = -120
+    angle3a = -180
+    angle4a = -240 
+    angle_increment = math.radians(2)  # Ensure this is a meaningful value
+
+    # Define a list of colors to cycle through (BGR format)
+    colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255), (255, 255, 0)]
+    color_index = 0  # Start with the first color
+
+    # Define how many frames to show each color
+    frames_per_color = 100  # Adjust this value as needed
+
+    # Initialize a frame counter
+    frame_counter = 0    
 
     while True:
         fps = cvFpsCalc.get()
@@ -355,7 +377,7 @@ def main():
         thumbs_up_detected =  False
         thumbs_down_detected =  False
         snowfall_active = False
-
+        laser_active = False
         screen_center_x = cap_width // 2
 
         #  ####################################################################
@@ -404,6 +426,10 @@ def main():
                     thumbs_down_detected = True
                 elif keypoint_classifier_labels[hand_sign_id] == 'OK':
                     snowfall_active  = True
+                elif keypoint_classifier_labels[hand_sign_id] == 'Lasers':
+                    laser_active  = True
+                    #debug_image = draw_laser_effect(debug_image)
+
                 # Finger gesture classification
                 finger_gesture_id = 0
                 point_history_len = len(pre_processed_point_history_list)
@@ -464,6 +490,83 @@ def main():
                     snowflake['angle'] = random.randint(0, 360)
 
             debug_image = apply_fog_effect(debug_image, intensity=0.175)  # Adjust intensity for desired fog effect
+
+        elif laser_active:
+            # laser_x += laser_dx
+            # laser_y += math.sqrt((cap_width+cap_height)**2 - laser_x**2)
+            # print(laser_y)
+
+            # if laser_x >= cap_width or laser_x <= 0:
+            #     laser_dx *= -1  # Change direction when hitting screen bounds
+            # if laser_y >= cap_height or laser_y <= 0:
+            #     laser_y -= 1  # Change direction when hitting screen bounds
+            # Example values for the center and radius of the arch
+            center_x, center_y = cap_width/2 , cap_height
+            radius = cap_height   # Example radius
+            print(center_x, center_y,cap_width,cap_height)
+            # Increment angle for movement
+            angle += angle_increment
+            laser_x = center_x + radius * math.cos(angle)
+            laser_y = center_y + radius * math.sin(angle) 
+            if laser_x >= cap_width or laser_x <= 0:
+                laser_dx *= -1  
+            angle1 += angle_increment
+            laser_x1 = center_x + radius * math.cos(angle1)
+            laser_y1 = center_y + radius * math.sin(angle1) 
+
+            angle2 += angle_increment
+            laser_x2 = center_x + radius * math.cos(angle2)
+            laser_y2 = center_y + radius * math.sin(angle2) 
+
+            angle3 += angle_increment
+            laser_x3 = center_x + radius * math.cos(angle3)
+            laser_y3 = center_y + radius * math.sin(angle3) 
+
+            angle4 += angle_increment
+            laser_x4 = center_x + radius * math.cos(angle4)
+            laser_y4 = center_y + radius * math.sin(angle4) 
+
+            anglea -= angle_increment
+            laser_xa = center_x + radius * math.cos(anglea)
+            laser_ya = center_y + radius * math.sin(anglea) 
+            if laser_x >= cap_width or laser_x <= 0:
+                laser_dx *= -1  
+
+            angle1a -= angle_increment
+            laser_x1a = center_x + radius * math.cos(angle1a)
+            laser_y1a = center_y + radius * math.sin(angle1a) 
+
+            angle2a -= angle_increment
+            laser_x2a = center_x + radius * math.cos(angle2a)
+            laser_y2a = center_y + radius * math.sin(angle2a) 
+
+            angle3a -= angle_increment
+            laser_x3a = center_x + radius * math.cos(angle3a)
+            laser_y3a = center_y + radius * math.sin(angle3a) 
+
+            angle4a -= angle_increment
+            laser_x4a = center_x + radius * math.cos(angle4a)
+            laser_y4a = center_y + radius * math.sin(angle4a)   
+
+            # Increment frame counter
+            frame_counter += 1
+
+            # Check if it's time to switch to the next color
+            if frame_counter >= frames_per_color:
+                color_index = (color_index + 1) % len(colors)  # Move to the next color, loop back to the start if necessary
+                frame_counter = 0  # Reset the frame counter
+
+            # # Use updated position to draw lasers
+            draw_laser_effect(debug_image, (int(laser_x), int(laser_y)),colors[color_index])
+            draw_laser_effect(debug_image, (int(laser_x1), int(laser_y1)),colors[color_index])
+            #draw_laser_effect(debug_image, (int(laser_x2), int(laser_y2)),colors[color_index])
+            draw_laser_effect(debug_image, (int(laser_x3), int(laser_y3)),colors[color_index])
+            #draw_laser_effect(debug_image, (int(laser_x4), int(laser_y4)),(255, 0, 0))
+            draw_laser_effect(debug_image, (int(laser_xa), int(laser_ya)),colors[color_index])
+            #draw_laser_effect(debug_image, (int(laser_x1a), int(laser_y1a)),colors[color_index])
+            draw_laser_effect(debug_image, (int(laser_x2a), int(laser_y2a)),colors[color_index])
+            draw_laser_effect(debug_image, (int(laser_x3a), int(laser_y3a)),colors[color_index])
+            #draw_laser_effect(debug_image, (int(laser_x4a), int(laser_y4a)),(255, 0, 0))
 
         debug_image = draw_point_history(debug_image, point_history)
         #debug_image = draw_info(debug_image, fps, mode, number)
