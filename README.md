@@ -2,6 +2,7 @@
 
 ## Project Overview
 This repository contains the code and resources for the Vision-Controlled Bionic Arm project, an innovative system that uses real-time hand gesture recognition to control a robotic arm. The project leverages Python for gesture recognition through MediaPipe and controls servo motors via Arduino to mimic these gestures physically.
+
 ![Vision GIF](https://github.com/jineshrs2398/Vision-controlled-Bionic-Arm/blob/main/Vision_Controller.gif)
 
 ## Features
