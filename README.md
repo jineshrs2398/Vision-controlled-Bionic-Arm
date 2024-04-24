@@ -8,8 +8,7 @@ This repository contains the code and resources for the Vision-Controlled Bionic
 ## Features
 - Real-time hand gesture tracking using MediaPipe
 - Servo control through Arduino for precise arm movements
-- Integration of LSM9DS1 sensor to refine movements based on gyroscopic and accelerometer data
-- Robust error handling and system recovery mechanisms
+- Integration of Exponential Moving Average (EMA) filter to refine servo movements
 
 ## Getting Started
 ### Prerequisites
