@@ -23,9 +23,9 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--device", type=int, default=0)
-    parser.add_argument("--width", help='cap width', type=int, default=960)
-    parser.add_argument("--height", help='cap height', type=int, default=540)
 
+    parser.add_argument("--width", help='cap width', type=int, default=1920)
+    parser.add_argument("--height", help='cap height', type=int, default=1020)
     parser.add_argument('--use_static_image_mode', action='store_true')
     parser.add_argument("--min_detection_confidence",
                         help='min_detection_confidence',
@@ -44,7 +44,7 @@ def get_args():
 def main():
 
     # Initialize serial connection
-    arduino = serial.Serial(port='COM3', baudrate=9600, timeout=.1)
+    arduino = serial.Serial(port='COM3', baudrate=57600, timeout=.1)
     time.sleep(2)  # Wait for connection to establish
 
     try:
@@ -170,23 +170,23 @@ def main():
                     # Drawing part
                     debug_image = draw_bounding_rect(use_brect, debug_image, brect)
                     debug_image = draw_landmarks(debug_image, landmark_list)
-                    debug_image = draw_info_text(
-                        debug_image,
-                        brect,
-                        handedness,
-                        keypoint_classifier_labels[hand_sign_id],
-                        point_history_classifier_labels[most_common_fg_id[0][0]],
-                    )
+                    # debug_image = draw_info_text(
+                    #     debug_image,
+                    #     brect,
+                    #     handedness,
+                    #     keypoint_classifier_labels[hand_sign_id],
+                    #     point_history_classifier_labels[most_common_fg_id[0][0]],
+                    # )
 
                 debug_image = draw_point_history(debug_image, point_history)
                 debug_image = draw_info(debug_image, fps, mode, number)
 
                 # Calculate the distances between the specified landmarks for each finger
-                distance_thumb = calculate_distance(landmark_list[2], landmark_list[4])
-                distance_index = calculate_distance(landmark_list[5], landmark_list[8])
-                distance_middle = calculate_distance(landmark_list[9], landmark_list[12])
-                distance_ring = calculate_distance(landmark_list[13], landmark_list[16])
-                distance_little = calculate_distance(landmark_list[17], landmark_list[20])
+                distance_thumb = calculate_distance(landmark_list[0], landmark_list[4])
+                distance_index = calculate_distance(landmark_list[0], landmark_list[8])
+                distance_middle = calculate_distance(landmark_list[0], landmark_list[12])
+                distance_ring = calculate_distance(landmark_list[0], landmark_list[16])
+                distance_little = calculate_distance(landmark_list[0], landmark_list[20])
 
                 # Reference distance from the little finger's tip to the base of the palm
                 distance_17_0 = calculate_distance(landmark_list[17], landmark_list[0])
@@ -198,10 +198,16 @@ def main():
                 ring_finger = round(distance_ring / distance_17_0, 2)
                 little_finger = round(distance_little / distance_17_0, 2)
 
-                print("index_finger:", index_finger,"middle_finger:",middle_finger,"ring_finger:",ring_finger,"little_finger:",little_finger  )    
+                #print("index_finger:", index_finger,"middle_finger:",middle_finger,"ring_finger:",ring_finger,"little_finger:",little_finger  )    
                 
                 data_string = f"{thumb_finger},{index_finger},{middle_finger},{ring_finger},{little_finger}\n"
                 arduino.write(data_string.encode())
+
+                #Data
+                if arduino.in_waiting > 0:
+                    line = arduino.readline().decode('utf-8').strip()
+                    
+                    print(line) 
 
             else:
                 point_history.append([0, 0])
